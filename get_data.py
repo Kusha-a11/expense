@@ -4,83 +4,83 @@ import io
 import os
 from typing import List, Dict, Any
 import time
-import concurrent.futures
+import concurrent.futures  # noqa: F401
 import logging
 
-# Add proper chess module import with error handling
+# Добавление правильного импорта модуля chess с обработкой ошибок
 try:
     import chess.pgn
 except ImportError:
     raise ImportError(
-        "python-chess is required. Install it with: pip install python-chess"
+        "Требуется python-chess. Установите его командой: pip install python-chess"
     )
 
 logger = logging.getLogger(__name__)
 
 def getGames(username: str) -> List[Dict[str, Any]]:
-    """Get all games for a user from chess.com API"""
+    """Получить все игры пользователя из API chess.com"""
     headers = {
         'User-Agent': 'Chess Analysis App (Contact: github.com/yogen-ghodke-113)',
         'Accept': 'application/json'
     }
     
     try:
-        # First get archives list
+        # Сначала получить список архивов
         archives_url = f"https://api.chess.com/pub/player/{username}/games/archives"
         response = requests.get(archives_url, headers=headers, timeout=10)
         
         if response.status_code == 404:
-            raise Exception("User not found. Please check the username and try again.")
+            raise Exception("Пользователь не найден. Проверьте имя пользователя и попробуйте снова.")
         response.raise_for_status()
         
         archives = response.json()["archives"]
         
-        # Get games from all archives
+        # Получить игры из всех архивов
         all_games = []
-        for archive_url in archives:  # Get all archives instead of just last 6 months
+        for archive_url in archives:  # Получить все архивы, а не только последние 6 месяцев
             try:
                 response = requests.get(archive_url, headers=headers, timeout=10)
                 response.raise_for_status()
                 all_games.extend(response.json()["games"])
-                logger.info(f"Fetched {len(response.json()['games'])} games from {archive_url}")
+                logger.info(f"Загружено {len(response.json()['games'])} игр из {archive_url}")
             except requests.exceptions.RequestException as e:
-                logger.warning(f"Could not fetch archive {archive_url}: {str(e)}")
+                logger.warning(f"Не удалось загрузить архив {archive_url}: {str(e)}")
                 continue
         
         if not all_games:
-            raise Exception("No games found for this user")
+            raise Exception("Для этого пользователя не найдено игр")
         
-        logger.info(f"Total games fetched: {len(all_games)}")
+        logger.info(f"Всего загружено игр: {len(all_games)}")
         return all_games
         
     except requests.exceptions.RequestException as e:
         if isinstance(e, requests.exceptions.HTTPError) and e.response.status_code == 404:
-            raise Exception("User not found. Please check the username and try again.")
+            raise Exception("Пользователь не найден. Проверьте имя пользователя и попробуйте снова.")
         elif "getaddrinfo failed" in str(e):
-            raise Exception("Unable to connect to Chess.com. Please check your internet connection.")
+            raise Exception("Не удаётся подключиться к Chess.com. Проверьте интернет-соединение.")
         else:
-            raise Exception(f"Error accessing Chess.com API: {str(e)}")
+            raise Exception(f"Ошибка доступа к API Chess.com: {str(e)}")
 
 def filterList(games: List[Dict[str, Any]], username: str) -> None:
-    """Filter games list to keep only standard chess games"""
-    # Remove non-standard chess games (variants, etc.)
-    for game in games[:]:  # Create a copy to iterate while modifying
+    """Отфильтровать список игр, оставив только стандартные шахматы"""
+    # Удалить нестандартные шахматные игры (варианты и т.д.)
+    for game in games[:]:  # Создаём копию для итерации при изменении
         if game.get("rules") != "chess":
             games.remove(game)
             continue
         
-        # Remove games without proper PGN
+        # Удалить игры без корректного PGN
         if not game.get("pgn"):
             games.remove(game)
             continue
         
-        # Remove games where the user didn't play
+        # Удалить игры, в которых пользователь не участвовал
         if (game.get("white", {}).get("username") != username and 
             game.get("black", {}).get("username") != username):
             games.remove(game)
 
 def createDataset(li: List[Dict[str, Any]], user: str) -> None:
-    """Create a dataset from chess games and save to CSV"""
+    """Создать набор данных из шахматных игр и сохранить в CSV"""
     col = [
         'player_username', 'opponent_username', 'played_as', 'opponent_played_as',
         'result_for_player', 'result_for_opponent', 'player_rating', 'opponent_rating',
@@ -108,7 +108,7 @@ def createDataset(li: List[Dict[str, Any]], user: str) -> None:
                     opening = pgn.headers["ECOUrl"][31:].replace("-", " ")
                     liz[9] = opening
             except Exception as e:
-                print(f"Warning: Could not parse PGN for game: {str(e)}")
+                print(f"Предупреждение: не удалось разобрать PGN для игры: {str(e)}")
                 continue
 
             count = 0
@@ -140,21 +140,21 @@ def createDataset(li: List[Dict[str, Any]], user: str) -> None:
                 df.loc[len(df)] = liz
                 
         except Exception as e:
-            print(f"Warning: Could not process game: {str(e)}")
+            print(f"Предупреждение: не удалось обработать игру: {str(e)}")
             continue
 
-    # Create directory in player_data if it doesn't exist
+    # Создать директорию в player_data, если она не существует
     user_dir = os.path.join('player_data', user)
     os.makedirs(user_dir, exist_ok=True)
     df.to_csv(os.path.join(user_dir, 'chess_dataset.csv'), index=False)
 
 def createAdvancedDataset(username: str) -> None:
-    """Create advanced dataset with numerical result values for prediction"""
+    """Создать расширенный набор данных с числовыми значениями результатов для прогнозирования"""
     try:
-        # Read the original dataset
+        # Прочитать исходный набор данных
         df = pd.read_csv(os.path.join('player_data', username, 'chess_dataset.csv'))
         
-        # Create result value column (0 for loss, 0.5 for draw, 1 for win)
+        # Создать столбец числового значения результата (0 — поражение, 0.5 — ничья, 1 — победа)
         df['result_val_for_player'] = df['result_for_player'].map({
             'win': 1.0,
             'agreed': 0.5,
@@ -168,57 +168,57 @@ def createAdvancedDataset(username: str) -> None:
             'abandoned': 0.0
         })
         
-        # Calculate rating difference
+        # Вычислить разницу рейтингов
         df['rating_difference'] = df['player_rating'] - df['opponent_rating']
         
-        # Save advanced dataset
+        # Сохранить расширенный набор данных
         df.to_csv(os.path.join('player_data', username, 'chess_dataset_adv.csv'), index=False)
         
     except Exception as e:
-        raise Exception(f"Error creating advanced dataset: {str(e)}")
+        raise Exception(f"Ошибка при создании расширенного набора данных: {str(e)}")
 
 def check_cached_data(username: str) -> bool:
-    """Check if required data files exist and are valid"""
+    """Проверить, существуют ли необходимые файлы данных и валидны ли они"""
     required_files = ["chess_dataset.csv", "chess_dataset_adv.csv"]
     player_dir = os.path.join('player_data', username)
     
-    # Check if all required files exist
+    # Проверить, существуют ли все необходимые файлы
     if not all(os.path.exists(os.path.join(player_dir, file)) for file in required_files):
         return False
         
-    # Check if files are not empty and are recent (less than 24 hours old)
+    # Проверить, что файлы не пусты и не устарели (менее 24 часов)
     try:
         for file in required_files:
             file_path = os.path.join(player_dir, file)
-            # Check if file is empty
+            # Проверить, не пуст ли файл
             if os.path.getsize(file_path) == 0:
                 return False
-            # Check if file is recent
-            if time.time() - os.path.getmtime(file_path) > 24 * 3600:  # 24 hours in seconds
+            # Проверить, свежий ли файл
+            if time.time() - os.path.getmtime(file_path) > 24 * 3600:  # 24 часа в секундах
                 return False
         return True
     except Exception:
         return False
 
 def driver_fn(username: str) -> None:
-    """Main driver function to get and process chess data"""
+    """Основная функция для получения и обработки шахматных данных"""
     try:
-        # Create user directory
+        # Создать директорию пользователя
         user_dir = os.path.join('player_data', username)
         os.makedirs(user_dir, exist_ok=True)
         
-        # Check if we have valid cached data
+        # Проверить, есть ли валидные кэшированные данные
         if check_cached_data(username):
-            print(f"Using cached data for {username}")
+            print(f"Используются кэшированные данные для {username}")
             return
             
-        # Get games data
+        # Получить данные игр
         games = getGames(username)
         filterList(games, username)
         
-        # Create datasets
+        # Создать наборы данных
         createDataset(games, username)
-        createAdvancedDataset(username)  # Create advanced dataset for prediction
+        createAdvancedDataset(username)  # Создать расширенный набор данных для прогнозирования
         
     except Exception as e:
-        raise Exception(f"Error in driver function: {str(e)}")
+        raise Exception(f"Ошибка в основной функции: {str(e)}")

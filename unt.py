@@ -2,7 +2,7 @@ import os
 import warnings
 import logging
 import sys
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional  # noqa: F401
 import gc
 import threading
 import _thread
@@ -10,8 +10,13 @@ import io
 import chess
 import chess.pgn
 import cairosvg
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+import plotly.graph_objects as go  # noqa: F401
 
-# Set up logging with file output
+# Настройка логирования с выводом в файл
 log_dir = "logs"
 os.makedirs(log_dir, exist_ok=True)
 log_file = os.path.join(log_dir, 'visualization.log')
@@ -20,23 +25,16 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler(log_file, mode='a'),  # Append mode
+        logging.FileHandler(log_file, mode='a'),  # Режим добавления
         logging.StreamHandler(sys.stdout)
     ]
 )
 logger = logging.getLogger(__name__)
-logger.info("="*50)  # Separator for new runs
-logger.info("Starting new visualization run")
+logger.info("="*50)  # Разделитель для новых запусков
+logger.info("Запуск новой сессии визуализации")
 
-# Suppress warnings
+# Подавление предупреждений
 warnings.filterwarnings('ignore')
-
-# Import required libraries
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-import numpy as np
-import plotly.graph_objects as go
 
 class TimeoutException(Exception):
     pass
@@ -45,46 +43,46 @@ def timeout_handler():
     _thread.interrupt_main()
 
 def time_limit(timeout):
-    """Windows-compatible timeout context manager using threading"""
+    """Контекстный менеджер таймаута, совместимый с Windows, использующий потоки"""
     timer = threading.Timer(timeout, timeout_handler)
     timer.start()
     try:
         yield
     except KeyboardInterrupt:
-        raise TimeoutException("Timed out!")
+        raise TimeoutException("Время истекло!")
     finally:
         timer.cancel()
 
 def check_dependencies() -> bool:
-    """Check if all required dependencies are installed"""
+    """Проверить, установлены ли все необходимые зависимости"""
     try:
-        import pandas as pd
-        import matplotlib.pyplot as plt
-        import seaborn as sns
-        import plotly.graph_objects as go
-        import plotly.io as pio
+        import pandas as pd  # noqa: F401
+        import matplotlib.pyplot as plt  # noqa: F401
+        import seaborn as sns  # noqa: F401
+        import plotly.graph_objects as go  # noqa: F401
+        import plotly.io as pio  # noqa: F401
         import chess
         import chess.svg
-        import chess.pgn
+        import chess.pgn  # noqa: F401
         
-        # Configure matplotlib for non-interactive backend
+        # Настройка matplotlib для неинтерактивного бэкенда
         plt.switch_backend('Agg')
         
         return True
     except ImportError as e:
-        logger.error(f"Missing required dependency: {str(e)}")
+        logger.error(f"Отсутствует необходимая зависимость: {str(e)}")
         return False
 
 def save_plotly_figure(fig, filepath: str, scale: int = 3) -> None:
-    """Save plotly figure with error handling"""
+    """Сохранить фигуру plotly с обработкой ошибок"""
     try:
         import plotly.io as pio
-        logger.info(f"Saving figure to {filepath}")
+        logger.info(f"Сохранение фигуры в {filepath}")
         
-        # Ensure directory exists
+        # Убедиться, что директория существует
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
         
-        # Configure kaleido for better performance
+        # Настройка kaleido для лучшей производительности
         pio.kaleido.scope.chromium_args = (
                     '--no-sandbox',
                     '--disable-gpu',
@@ -92,7 +90,7 @@ def save_plotly_figure(fig, filepath: str, scale: int = 3) -> None:
                     '--single-process'
         )
         
-        # Save with minimal configuration
+        # Сохранение с минимальной конфигурацией
         fig.write_image(
             filepath,
             format='png',
@@ -101,355 +99,355 @@ def save_plotly_figure(fig, filepath: str, scale: int = 3) -> None:
             width=1200,
             height=800
         )
-        logger.info("Successfully saved figure")
+        logger.info("Фигура успешно сохранена")
         
     except Exception as e:
-        logger.error(f"Could not save figure: {str(e)}")
-        # Fallback to HTML
+        logger.error(f"Не удалось сохранить фигуру: {str(e)}")
+        # Запасной вариант — HTML
         try:
                 html_path = filepath.replace('.png', '.html')
                 fig.write_html(html_path)
-                logger.info(f"Saved as HTML fallback: {html_path}")
+                logger.info(f"Сохранено как HTML-запасной вариант: {html_path}")
         except Exception as e2:
-            logger.error(f"HTML fallback also failed: {str(e2)}")
+            logger.error(f"HTML-запасной вариант также не удался: {str(e2)}")
 
 def fight(df: pd.DataFrame, username: str) -> None:
-    """Generate game length analysis visualization for lost games"""
+    """Создать визуализацию анализа длины партий для проигранных игр"""
     try:
-        logger.info("Starting game length analysis...")
+        logger.info("Запуск анализа длины партий...")
         
-        # Get last 100 lost games
+        # Получить последние 100 проигранных партий
         lost_games = df[df['result_for_opponent'] == "win"].tail(100)
         
-        # Create DataFrame for plotting
+        # Создать DataFrame для построения графика
         moves_df = pd.DataFrame({
             'game_no': range(len(lost_games)),
             'moves': lost_games['moves'].values
         })
         
-        # Create figure with matplotlib
+        # Создать фигуру с matplotlib
         plt.figure(figsize=(12, 8))
         plt.style.use('seaborn')
         
-        # Create line plot with markers
+        # Создать линейный график с маркерами
         plt.plot(moves_df['game_no'], moves_df['moves'], 
                 marker='o', markersize=6, linewidth=2, 
                 color='#2196F3', markerfacecolor='white',
                 markeredgecolor='#2196F3', markeredgewidth=1.5)
         
-        # Customize the plot
-        plt.title("Moves in Last 100 Lost Games", size=16, pad=20)
-        plt.xlabel("Game Number", size=12, labelpad=10)
-        plt.ylabel("Number of Moves", size=12, labelpad=10)
+        # Настроить график
+        plt.title("Количество ходов в последних 100 проигранных партиях", size=16, pad=20)
+        plt.xlabel("Номер партии", size=12, labelpad=10)
+        plt.ylabel("Количество ходов", size=12, labelpad=10)
         
-        # Add grid
+        # Добавить сетку
         plt.grid(True, alpha=0.3)
         
-        # Adjust layout
+        # Настроить отступы
         plt.tight_layout()
         
-        # Save figure
+        # Сохранить фигуру
         output_path = os.path.join('player_data', username, "fight.png")
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
         plt.close()
         
-        logger.info("Game length analysis visualization complete")
+        logger.info("Визуализация анализа длины партий завершена")
         
     except Exception as e:
-        logger.error(f"Error in game length analysis: {str(e)}")
+        logger.error(f"Ошибка в анализе длины партий: {str(e)}")
         raise
 
 def wh_countplot(df: pd.DataFrame, username: str) -> None:
-    """Generate opening analysis visualization"""
+    """Создать визуализацию анализа дебютов для белых"""
     try:
-        # White games analysis
+        # Анализ партий белыми
         white_df = df[df["played_as"] == "white"]
         white_op_freq = white_df['opening'].value_counts().head(20)
         
-        # Set figure size and style
+        # Установить размер фигуры и стиль
         plt.figure(figsize=(20, 15))
         sns.set(rc={'figure.figsize': (20, 15)})
         sns.set_style("darkgrid", {'axes.grid': False})
         
-        # Create plot
+        # Создать график
         ax = sns.countplot(
             y='opening',
             data=white_df[white_df['opening'].isin(white_op_freq.index)],
             order=white_op_freq.index
         )
         
-        # Add frequency counts at the end of each bar
+        # Добавить значения частоты в конце каждой полосы
         for i, v in enumerate(white_op_freq.values):
             ax.text(v + 0.1, i, str(v), va='center', fontsize=12)
         
-        # Style the plot
+        # Оформить график
         ax.set_ylabel("")
-        ax.set_xlabel("Frequency", size=20, labelpad=30)
+        ax.set_xlabel("Частота", size=20, labelpad=30)
         ax.tick_params(labelsize=17)
         
-        # Extend x-axis to make room for labels
+        # Расширить ось X, чтобы освободить место для подписей
         plt.xlim(0, max(white_op_freq.values) * 1.1)
         
-        # Save figure
+        # Сохранить фигуру
         output_path = os.path.join('player_data', username, "top_op_wh.png")
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         plt.savefig(output_path, bbox_inches='tight', dpi=300)
         plt.close()
         
     except Exception as e:
-        logger.error(f"Error in opening analysis: {str(e)}")
+        logger.error(f"Ошибка в анализе дебютов: {str(e)}")
         raise
 
 def bl_countplot(df: pd.DataFrame, username: str) -> None:
-    """Generate opening analysis visualization for black pieces"""
+    """Создать визуализацию анализа дебютов для чёрных"""
     try:
-        # Black games analysis
+        # Анализ партий чёрными
         black_df = df[df["played_as"] == "black"]
         black_op_freq = black_df['opening'].value_counts().head(20)
         
-        # Set figure size and style
+        # Установить размер фигуры и стиль
         plt.figure(figsize=(20, 15))
         sns.set(rc={'figure.figsize': (20, 15)})
         sns.set_style("darkgrid", {'axes.grid': False})
         
-        # Create plot
+        # Создать график
         ax = sns.countplot(
             y='opening',
             data=black_df[black_df['opening'].isin(black_op_freq.index)],
             order=black_op_freq.index
         )
         
-        # Add frequency counts at the end of each bar
+        # Добавить значения частоты в конце каждой полосы
         for i, v in enumerate(black_op_freq.values):
             ax.text(v + 0.1, i, str(v), va='center', fontsize=12)
         
-        # Style the plot
+        # Оформить график
         ax.set_ylabel("")
-        ax.set_xlabel("Frequency", size=20, labelpad=30)
+        ax.set_xlabel("Частота", size=20, labelpad=30)
         ax.tick_params(labelsize=17)
         
-        # Extend x-axis to make room for labels
+        # Расширить ось X, чтобы освободить место для подписей
         plt.xlim(0, max(black_op_freq.values) * 1.1)
         
-        # Save figure
+        # Сохранить фигуру
         output_path = os.path.join('player_data', username, "top_op_bl.png")
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         plt.savefig(output_path, bbox_inches='tight', dpi=300)
         plt.close()
         
     except Exception as e:
-        logger.error(f"Error in black opening analysis: {str(e)}")
+        logger.error(f"Ошибка в анализе дебютов чёрными: {str(e)}")
         raise
 
 def most_used_wh(df: pd.DataFrame, username: str) -> None:
-    """Generate chess board visualizations for top 3 first moves as white"""
+    """Создать визуализации шахматной доски для топ-3 первых ходов белыми"""
     try:
-        logger.info("Creating top 3 first moves visualization...")
+        logger.info("Создание визуализации топ-3 первых ходов...")
         import chess
         import chess.svg
         
-        # Get top 3 moves as white
+        # Получить топ-3 хода белыми
         white_df = df[df["played_as"] == "white"]
         if white_df.empty:
-            logger.warning("No games found as white pieces")
+            logger.warning("Не найдено партий белыми фигурами")
             return
             
-        # Extract and count first moves
+        # Извлечь и подсчитать первые ходы
         first_moves = white_df["first_move"].value_counts()
-        logger.info(f"Found first moves: {first_moves.to_dict()}")
+        logger.info(f"Найдены первые ходы: {first_moves.to_dict()}")
         
         if first_moves.empty:
-            logger.warning("No first moves found in white games")
+            logger.warning("Не найдено первых ходов в партиях белыми")
             return
 
-        # Process top 3 moves
+        # Обработать топ-3 хода
         for i, (move, count) in enumerate(first_moves.head(3).items(), 1):
             try:
-                # Create a new board
+                # Создать новую доску
                 board = chess.Board()
                 
-                # Parse move using python-chess's built-in parser
+                # Разобрать ход с помощью встроенного парсера python-chess
                 try:
                     chess_move = board.parse_san(move)
                     board.push(chess_move)
                 except ValueError:
-                    logger.warning(f"Could not parse move {move}")
+                    logger.warning(f"Не удалось разобрать ход {move}")
                     continue
                     
-                # Generate SVG with Lichess-style colors
+                # Сгенерировать SVG в стиле Lichess
                 svg_content = chess.svg.board(
                     board=board,
                     size=400,
                     coordinates=True,
                     colors={
-                        'square light': '#f0d9b5',  # Lichess brown light squares
-                        'square dark': '#b58863',   # Lichess brown dark squares
-                        'square light lastmove': '#cdd26a',  # Lichess last move highlight light
-                        'square dark lastmove': '#aaa23a',   # Lichess last move highlight dark
+                        'square light': '#f0d9b5',  # Светлые поля Lichess (коричневые)
+                        'square dark': '#b58863',   # Тёмные поля Lichess (коричневые)
+                        'square light lastmove': '#cdd26a',  # Подсветка последнего хода Lichess (светлые)
+                        'square dark lastmove': '#aaa23a',   # Подсветка последнего хода Lichess (тёмные)
                         'margin': 'none',
-                        'coord': '#666666'          # Lichess coordinate color
+                        'coord': '#666666'          # Цвет координат Lichess
                     }
                 )
                 
-                # Save SVG first
+                # Сначала сохранить SVG
                 svg_path = os.path.join('player_data', username, f'top_opening_move_as_white_{i}.svg')
                 with open(svg_path, 'w') as f:
                     f.write(svg_content)
                 
-                # Convert to PNG
+                # Конвертировать в PNG
                 png_path = os.path.join('player_data', username, f'top_opening_move_as_white_{i}.png')
                 cairosvg.svg2png(
                     url=svg_path,
                     write_to=png_path,
-                    scale=2.0  # Increase quality
+                    scale=2.0  # Увеличить качество
                 )
                 
-                logger.info(f"Successfully created visualization for move {i}: {move}")
+                logger.info(f"Успешно создана визуализация для хода {i}: {move}")
                 
             except Exception as e:
-                logger.error(f"Error creating visualization for move {i}: {str(e)}")
+                logger.error(f"Ошибка при создании визуализации для хода {i}: {str(e)}")
                 continue
                 
     except Exception as e:
-        logger.error(f"Error in top moves visualization: {str(e)}")
+        logger.error(f"Ошибка в визуализации топ-ходов: {str(e)}")
         raise
 
 def most_used_bl(df: pd.DataFrame, username: str) -> None:
-    """Generate chess board visualizations for top 3 first replies as black"""
+    """Создать визуализации шахматной доски для топ-3 первых ответов чёрными"""
     try:
-        logger.info("Creating top 3 black replies visualization...")
+        logger.info("Создание визуализации топ-3 ответов чёрными...")
         import chess
         import chess.svg
         import chess.pgn
         
-        # Get games where user played as black
+        # Получить партии, где пользователь играл чёрными
         black_games = df[df['played_as'] == "black"]
         if black_games.empty:
-            logger.warning("No games found as black pieces")
+            logger.warning("Не найдено партий чёрными фигурами")
             return
             
-        # Dictionary to store black's first moves
+        # Словарь для хранения первых ходов чёрных
         black_replies = {}
         
-        # Process each game to extract black's first move
+        # Обработать каждую партию, чтобы извлечь первый ход чёрных
         for _, row in black_games.iterrows():
             pgn = chess.pgn.read_game(io.StringIO(row['PGN']))
             if pgn:
                 moves = list(pgn.mainline_moves())
-                if len(moves) >= 2:  # Make sure there are at least 2 moves
+                if len(moves) >= 2:  # Убедиться, что есть как минимум 2 хода
                     board = chess.Board()
-                    board.push(moves[0])  # Apply white's first move
-                    black_move = moves[1]  # Get black's response
-                    move_san = board.san(black_move)  # Get move in SAN notation
+                    board.push(moves[0])  # Применить первый ход белых
+                    black_move = moves[1]  # Получить ответ чёрных
+                    move_san = board.san(black_move)  # Получить ход в нотации SAN
                     black_replies[move_san] = black_replies.get(move_san, 0) + 1
 
         if not black_replies:
-            logger.warning("No black replies found")
+            logger.warning("Не найдено ответов чёрных")
             return
 
-        # Sort replies by frequency
+        # Отсортировать ответы по частоте
         sorted_replies = sorted(black_replies.items(), key=lambda x: x[1], reverse=True)
-        logger.info(f"Found black replies: {dict(sorted_replies)}")
+        logger.info(f"Найдены ответы чёрных: {dict(sorted_replies)}")
 
-        # Process top 3 replies
+        # Обработать топ-3 ответа
         for i, (move, count) in enumerate(sorted_replies[:3], 1):
             try:
-                # Create a new board
+                # Создать новую доску
                 board = chess.Board()
                 
-                # Make a common first move for white (e4) to show black's reply context
-                board.push_san("e4")  # We'll show black's replies against e4
+                # Сделать распространённый первый ход белыми (e4), чтобы показать контекст ответа чёрных
+                board.push_san("e4")  # Мы покажем ответы чёрных на e4
                 
-                # Parse black's move
+                # Разобрать ход чёрных
                 try:
                     chess_move = board.parse_san(move)
                     board.push(chess_move)
                 except ValueError:
-                    logger.warning(f"Could not parse move {move}")
+                    logger.warning(f"Не удалось разобрать ход {move}")
                     continue
                     
-                # Generate SVG with Lichess-style colors
+                # Сгенерировать SVG в стиле Lichess
                 svg_content = chess.svg.board(
                     board=board,
                     size=400,
                     coordinates=True,
-                    orientation=chess.BLACK,  # Show board from black's perspective
+                    orientation=chess.BLACK,  # Показать доску с точки зрения чёрных
                     colors={
-                        'square light': '#f0d9b5',  # Lichess brown light squares
-                        'square dark': '#b58863',   # Lichess brown dark squares
-                        'square light lastmove': '#cdd26a',  # Lichess last move highlight light
-                        'square dark lastmove': '#aaa23a',   # Lichess last move highlight dark
+                        'square light': '#f0d9b5',  # Светлые поля Lichess (коричневые)
+                        'square dark': '#b58863',   # Тёмные поля Lichess (коричневые)
+                        'square light lastmove': '#cdd26a',  # Подсветка последнего хода Lichess (светлые)
+                        'square dark lastmove': '#aaa23a',   # Подсветка последнего хода Lichess (тёмные)
                         'margin': 'none',
-                        'coord': '#666666'          # Lichess coordinate color
+                        'coord': '#666666'          # Цвет координат Lichess
                     }
                 )
                 
-                # Save SVG first
+                # Сначала сохранить SVG
                 svg_path = os.path.join('player_data', username, f'top_reply_move_as_black_{i}.svg')
                 with open(svg_path, 'w') as f:
                     f.write(svg_content)
                 
-                # Convert to PNG
+                # Конвертировать в PNG
                 png_path = os.path.join('player_data', username, f'top_reply_move_as_black_{i}.png')
                 cairosvg.svg2png(
                     url=svg_path,
                     write_to=png_path,
-                    scale=2.0  # Increase quality
+                    scale=2.0  # Увеличить качество
                 )
                 
-                logger.info(f"Successfully created visualization for black reply {i}: {move}")
+                logger.info(f"Успешно создана визуализация для ответа чёрных {i}: {move}")
                 
             except Exception as e:
-                logger.error(f"Error creating visualization for move {i}: {str(e)}")
+                logger.error(f"Ошибка при создании визуализации для хода {i}: {str(e)}")
                 continue
                 
     except Exception as e:
-        logger.error(f"Error in top black replies visualization: {str(e)}")
+        logger.error(f"Ошибка в визуализации топ-ответов чёрных: {str(e)}")
         raise
 
 def create_rating_ladder(df: pd.DataFrame, username: str) -> None:
-    """Create rating progress visualization showing last 150 games for each time control"""
+    """Создать визуализацию прогресса рейтинга, показывающую последние 150 партий для каждого контроля времени"""
     try:
-        logger.info("Creating rating ladder visualization...")
+        logger.info("Создание визуализации лестницы рейтинга...")
         
-        # Define time controls we want to track (excluding daily)
+        # Определить контроли времени, которые мы хотим отслеживать (исключая ежедневные)
         time_controls = ["bullet", "blitz", "rapid"]
         
-        # Create figure with seaborn style
+        # Создать фигуру со стилем seaborn
         plt.figure(figsize=(12, 6))
         sns.set_style("darkgrid", {'axes.grid': True, 'grid.color': '.8', 'grid.linestyle': '-'})
         
-        # Track if we have any data to plot
+        # Отслеживать, есть ли данные для построения
         has_data = False
         
-        # Define markers and colors for each time control with better visibility
+        # Определить маркеры и цвета для каждого контроля времени с лучшей видимостью
         style_map = {
-            'bullet': ('X', '#FF3333'),  # Changed 'x' to 'X' for bigger marker, Bright red
-            'blitz': ('o', '#0066CC'),   # Deep blue circle
-            'rapid': ('s', '#00CC66'),   # Deep green square
+            'bullet': ('X', '#FF3333'),  # Изменено 'x' на 'X' для большего маркера, ярко-красный
+            'blitz': ('o', '#0066CC'),   # Тёмно-синий круг
+            'rapid': ('s', '#00CC66'),   # Тёмно-зелёный квадрат
         }
         
-        # Process each time control
+        # Обработать каждый контроль времени
         for time_class in time_controls:
-            # Get last 150 rated games for this time control
+            # Получить последние 150 рейтинговых партий для этого контроля времени
             games = df[
                 (df['rated']) & 
                 (df['time_class'] == time_class)
             ].tail(150)
             
-            # Skip if no games for this time control
+            # Пропустить, если нет партий для этого контроля времени
             if games.empty:
-                logger.info(f"No rated {time_class} games found")
+                logger.info(f"Не найдено рейтинговых партий в контроле {time_class}")
                 continue
                 
-            # Remove any NaN values from player_rating
+            # Удалить значения NaN из player_rating
             games = games.dropna(subset=['player_rating'])
             
             if not games.empty:
                 has_data = True
                 marker, color = style_map[time_class]
-                # Create line plot
+                # Создать линейный график
                 sns.lineplot(
                     data=games, 
                     x=range(len(games)), 
@@ -457,92 +455,92 @@ def create_rating_ladder(df: pd.DataFrame, username: str) -> None:
                     label=time_class.capitalize(),
                     marker=marker,
                     color=color,
-                    markersize=8,  # Increased from 6
-                    markeredgewidth=2,  # Added to make markers more visible
+                    markersize=8,  # Увеличено с 6
+                    markeredgewidth=2,  # Добавлено, чтобы сделать маркеры более заметными
                     linewidth=1.5
                 )
         
         if not has_data:
-            logger.warning("No rated games found in any time control")
+            logger.warning("Не найдено рейтинговых партий ни в одном контроле времени")
             return
             
-        # Customize the plot
-        plt.title("Rating Progress by Time Control (Last 150 Games per Type)", size=14, pad=20)
-        plt.xlabel("Game Number", size=12)
-        plt.ylabel("Rating", size=12)
+        # Настроить график
+        plt.title("Прогресс рейтинга по контролю времени (последние 150 партий для каждого типа)", size=14, pad=20)
+        plt.xlabel("Номер партии", size=12)
+        plt.ylabel("Рейтинг", size=12)
         
-        # Add legend with custom title
+        # Добавить легенду с пользовательским заголовком
         plt.legend(
-            title="Time Control",
+            title="Контроль времени",
             title_fontsize=12,
             fontsize=10,
             bbox_to_anchor=(1.05, 1),
             loc='upper left'
         )
         
-        # Adjust layout to prevent label cutoff
+        # Настроить отступы, чтобы избежать обрезания подписей
         plt.tight_layout()
         
-        # Save the plot
+        # Сохранить график
         output_path = os.path.join('player_data', username, "rating_ladder_red.png")
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
         plt.close()
         
-        logger.info("Rating ladder visualization created successfully")
+        logger.info("Визуализация лестницы рейтинга успешно создана")
         
     except Exception as e:
-        logger.error(f"Error creating rating ladder: {str(e)}")
+        logger.error(f"Ошибка при создании лестницы рейтинга: {str(e)}")
         raise
 
 def create_result_distribution(df: pd.DataFrame, username: str) -> None:
-    """Create pie chart of game results"""
+    """Создать круговую диаграмму результатов партий"""
     try:
-        logger.info("Creating result distribution visualization...")
+        logger.info("Создание визуализации распределения результатов...")
         
-        # Count results
+        # Подсчитать результаты
         result_counts = df['result_for_player'].value_counts()
         
-        # Create figure
+        # Создать фигуру
         plt.figure(figsize=(10, 8))
         plt.style.use('seaborn')
         
-        # Create pie chart with clean styling
+        # Создать круговую диаграмму с чистым стилем
         colors = plt.cm.Pastel1(np.linspace(0, 1, len(result_counts)))
         plt.pie(result_counts.values, labels=result_counts.index, 
                autopct='%1.1f%%', startangle=90,
                textprops={'fontsize': 12},
                colors=colors)
         
-        # Remove unnecessary styling
+        # Убрать ненужное оформление
         plt.axis('equal')
         
-        # Save figure
+        # Сохранить фигуру
         output_path = os.path.join('player_data', username, "result_pi.png")
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         plt.savefig(output_path, bbox_inches='tight', dpi=300, facecolor='white')
         plt.close()
-        logger.info("Result distribution visualization complete")
+        logger.info("Визуализация распределения результатов завершена")
         
     except Exception as e:
-        logger.error(f"Error in result distribution: {str(e)}")
+        logger.error(f"Ошибка в распределении результатов: {str(e)}")
         raise
 
 def create_time_control_dist(df: pd.DataFrame, username: str) -> None:
-    """Create time control distribution visualization"""
+    """Создать визуализацию распределения контроля времени"""
     try:
-        logger.info("Creating time control distribution...")
+        logger.info("Создание визуализации распределения контроля времени...")
         
-        # Get time control counts
+        # Получить количество партий по контролю времени
         time_counts = df['time_class'].value_counts()
         
-        # Create figure
+        # Создать фигуру
         plt.figure(figsize=(12, 8))
         
-        # Define colors for each time control
+        # Определить цвета для каждого контроля времени
         colors = ['#FF9999', '#66B2FF', '#99FF99', '#FFCC99', '#FF99CC', '#99FFCC']
         
-        # Create pie chart with clean styling
+        # Создать круговую диаграмму с чистым стилем
         patches, texts, autotexts = plt.pie(
             time_counts.values, 
             labels=time_counts.index,
@@ -552,56 +550,56 @@ def create_time_control_dist(df: pd.DataFrame, username: str) -> None:
             textprops={'fontsize': 12}
         )
         
-        # Add title
-        plt.title('Time Control Distribution', size=16, pad=20)
+        # Добавить заголовок
+        plt.title('Распределение по контролю времени', size=16, pad=20)
         
-        # Add legend
+        # Добавить легенду
         plt.legend(
             patches,
             time_counts.index,
-            title="Time Controls",
+            title="Контроль времени",
             loc="center left",
             bbox_to_anchor=(1, 0, 0.5, 1)
         )
         
-        # Equal aspect ratio ensures circular pie
+        # Равное соотношение сторон обеспечивает круглую форму
         plt.axis('equal')
         
-        # Save figure with extra space for legend
+        # Сохранить фигуру с дополнительным пространством для легенды
         output_path = os.path.join('player_data', username, "time_class.png")
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
         plt.close()
         
-        logger.info("Time control visualization complete")
+        logger.info("Визуализация контроля времени завершена")
         
     except Exception as e:
-        logger.error(f"Error in time control distribution: {str(e)}")
+        logger.error(f"Ошибка в распределении контроля времени: {str(e)}")
         raise
 
 def create_color_results(df: pd.DataFrame, username: str) -> None:
-    """Create results by color visualizations"""
+    """Создать визуализации результатов по цвету фигур"""
     try:
-        logger.info("Creating color results visualizations...")
+        logger.info("Создание визуализаций результатов по цвету...")
         
-        # Function to create donut chart
+        # Функция для создания пончиковой диаграммы
         def create_donut_chart(data, title, output_path):
             plt.figure(figsize=(10, 8))
             plt.style.use('seaborn')
             
-            # Calculate percentages
+            # Рассчитать проценты
             total = sum(data)
             percentages = [count/total * 100 for count in data]
             
-            # Create pie chart
+            # Создать круговую диаграмму
             plt.pie(percentages, 
-                   labels=['win', 'draw', 'loss'],
-                   colors=['#2ecc71', '#95a5a6', '#e74c3c'],  # Green, Gray, Red
+                   labels=['победа', 'ничья', 'поражение'],
+                   colors=['#2ecc71', '#95a5a6', '#e74c3c'],  # Зелёный, серый, красный
                    autopct='%1.1f%%',
                    startangle=90,
                    textprops={'fontsize': 12})
             
-            # Add a circle at the center to create donut effect
+            # Добавить круг в центре для создания эффекта пончика
             centre_circle = plt.Circle((0, 0), 0.70, color='gray', fc='white')
             fig = plt.gcf()
             fig.gca().add_artist(centre_circle)
@@ -609,11 +607,11 @@ def create_color_results(df: pd.DataFrame, username: str) -> None:
             plt.title(title, size=14, pad=20)
             plt.axis('equal')
             
-            # Save figure
+            # Сохранить фигуру
             plt.savefig(output_path, bbox_inches='tight', dpi=300, facecolor='white')
             plt.close()
         
-        # White games
+        # Партии белыми
         white_games = df[df['played_as'] == 'white']
         white_wins = len(white_games[white_games['result_for_player'] == 'win'])
         white_draws = len(white_games[white_games['result_for_player'].isin(
@@ -621,13 +619,13 @@ def create_color_results(df: pd.DataFrame, username: str) -> None:
         white_losses = len(white_games[white_games['result_for_player'].isin(
             ['resigned', 'checkmated', 'timeout', 'abandoned'])])
         
-        # Create white results donut chart
+        # Создать пончиковую диаграмму результатов белыми
         output_path = os.path.join('player_data', username, "result_as_wh.png")
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         create_donut_chart([white_wins, white_draws, white_losses], 
-                        'Results as White', output_path)
+                        'Результаты белыми', output_path)
         
-        # Black games
+        # Партии чёрными
         black_games = df[df['played_as'] == 'black']
         black_wins = len(black_games[black_games['result_for_player'] == 'win'])
         black_draws = len(black_games[black_games['result_for_player'].isin(
@@ -635,42 +633,42 @@ def create_color_results(df: pd.DataFrame, username: str) -> None:
         black_losses = len(black_games[black_games['result_for_player'].isin(
             ['resigned', 'checkmated', 'timeout', 'abandoned'])])
         
-        # Create black results donut chart
+        # Создать пончиковую диаграмму результатов чёрными
         output_path = os.path.join('player_data', username, "result_as_bl.png")
         create_donut_chart([black_wins, black_draws, black_losses], 
-                        'Results as Black', output_path)
+                        'Результаты чёрными', output_path)
         
-        logger.info("Color results visualizations complete")
+        logger.info("Визуализации результатов по цвету завершены")
         
     except Exception as e:
-        logger.error(f"Error in color results: {str(e)}")
+        logger.error(f"Ошибка в результатах по цвету: {str(e)}")
         raise
 
 def create_top_5_openings(df: pd.DataFrame, username: str) -> None:
-    """Create top 5 most successful and least successful openings analysis for both colors"""
+    """Создать анализ топ-5 наиболее успешных и наименее успешных дебютов для обоих цветов"""
     try:
-        logger.info("Creating top 5 openings analysis...")
+        logger.info("Создание анализа топ-5 дебютов...")
         
-        # Ensure output directory exists
+        # Убедиться, что выходная директория существует
         output_dir = os.path.join('player_data', username)
         os.makedirs(output_dir, exist_ok=True)
-        logger.info(f"Created output directory: {output_dir}")
+        logger.info(f"Создана выходная директория: {output_dir}")
         
         def wrap_labels(text, width=30):
-            """Wrap text at specified width"""
+            """Обернуть текст на указанной ширине"""
             import textwrap
             return textwrap.fill(text, width=width)
         
         def calculate_opening_stats(color_df):
-            """Calculate stats for openings using points-based system"""
+            """Рассчитать статистику по дебютам, используя систему очков"""
             opening_stats = []
-            logger.info(f"Processing {len(color_df)} games")
+            logger.info(f"Обработка {len(color_df)} партий")
             
-            # Get value counts of openings first
+            # Сначала получить количество партий по дебютам
             opening_counts = color_df['opening'].value_counts()
-            logger.info(f"Unique openings found: {len(opening_counts)}")
+            logger.info(f"Найдено уникальных дебютов: {len(opening_counts)}")
             
-            # Process openings
+            # Обработать дебюты
             for opening in opening_counts.index:
                 games = color_df[color_df['opening'] == opening]
                 total_games = len(games)
@@ -681,7 +679,7 @@ def create_top_5_openings(df: pd.DataFrame, username: str) -> None:
                 losses = len(games[games['result_for_player'].isin(
                     ['resigned', 'checkmated', 'timeout', 'abandoned'])])
                 
-                # Calculate points using the weighted system
+                # Рассчитать очки по взвешенной системе
                 points = (wins * 1.0) + (draws * 0.5) + (losses * 0)
                 points_percentage = (points / total_games) * 100
                 
@@ -695,51 +693,51 @@ def create_top_5_openings(df: pd.DataFrame, username: str) -> None:
                     'points': points
                 })
             
-            logger.info(f"Processed {len(opening_stats)} openings")
+            logger.info(f"Обработано {len(opening_stats)} дебютов")
             return opening_stats
         
         def create_opening_chart(stats, title, output_path, best=True):
-            """Create bar chart for openings"""
+            """Создать столбчатую диаграмму для дебютов"""
             try:
-                logger.info(f"Creating chart: {title}")
-                logger.info(f"Number of stats available: {len(stats)}")
+                logger.info(f"Создание диаграммы: {title}")
+                logger.info(f"Доступно статистических данных: {len(stats)}")
                 
-                # Get top 5 or bottom 5 based on points percentage
+                # Получить топ-5 или последние 5 по проценту очков
                 selected_stats = stats[:5] if best else stats[-5:]
                 if not best:
-                    selected_stats = selected_stats[::-1]  # Reverse order for worst openings
+                    selected_stats = selected_stats[::-1]  # Обратный порядок для худших дебютов
                 
-                logger.info(f"Selected {len(selected_stats)} stats for visualization")
+                logger.info(f"Выбрано {len(selected_stats)} дебютов для визуализации")
                 
-                # Prepare data for plotting
+                # Подготовить данные для построения
                 openings = [wrap_labels(s['opening'], width=25) for s in selected_stats]
                 wins = [s['wins'] for s in selected_stats]
                 draws = [s['draws'] for s in selected_stats]
                 losses = [s['losses'] for s in selected_stats]
                 
-                logger.info(f"Data prepared - Openings: {len(openings)}, Wins: {len(wins)}, Draws: {len(draws)}, Losses: {len(losses)}")
+                logger.info(f"Данные подготовлены - Дебютов: {len(openings)}, Побед: {len(wins)}, Ничьих: {len(draws)}, Поражений: {len(losses)}")
                 
-                # Create DataFrame for plotting
+                # Создать DataFrame для построения
                 most_used_openings = pd.DataFrame({
                     'wins': wins,
                     'draws': draws,
                     'losses': losses
                 }, index=openings)
                 
-                # Create figure with adjusted size ratio
+                # Создать фигуру с настроенным соотношением размеров
                 plt.figure(figsize=(15, 8))
                 
-                # Create unstacked bar plot
+                # Создать ненасыщенную столбчатую диаграмму
                 ax = most_used_openings[["wins", "draws", "losses"]].plot.barh(
                     rot=0, 
                     color=["green", "blue", "red"], 
                     stacked=False
                 )
                 
-                # Customize plot
+                # Настроить график
                 ax.set_facecolor('xkcd:white')
                 
-                # Add legend in a box
+                # Добавить легенду в рамке
                 ax.legend(
                     prop={'size': 14},
                     frameon=True,
@@ -750,76 +748,76 @@ def create_top_5_openings(df: pd.DataFrame, username: str) -> None:
                     borderaxespad=0.
                 )
                 
-                # Center title with smaller size
+                # Центрировать заголовок с меньшим размером
                 plt.title(title, size=20, y=1.02, pad=15, ha='center')
                 
-                # Adjust labels
-                plt.xlabel("Number of Games", size=16, labelpad=20)
+                # Настроить подписи
+                plt.xlabel("Количество партий", size=16, labelpad=20)
                 plt.xticks(fontsize=12)
                 plt.yticks(fontsize=12)
                 
-                # Add more space for the bars
+                # Добавить больше места для столбцов
                 plt.subplots_adjust(left=0.3)
                 
-                # Save figure
-                logger.info(f"Saving figure to: {output_path}")
+                # Сохранить фигуру
+                logger.info(f"Сохранение фигуры в: {output_path}")
                 plt.savefig(output_path, dpi=150, bbox_inches='tight')
                 plt.close()
-                logger.info(f"Successfully created chart: {title}")
+                logger.info(f"Диаграмма успешно создана: {title}")
                 
             except Exception as e:
-                logger.error(f"Error creating chart {title}: {str(e)}")
-                logger.error(f"Error type: {type(e).__name__}")
+                logger.error(f"Ошибка при создании диаграммы {title}: {str(e)}")
+                logger.error(f"Тип ошибки: {type(e).__name__}")
                 import traceback
-                logger.error(f"Traceback: {traceback.format_exc()}")
+                logger.error(f"Трассировка: {traceback.format_exc()}")
                 plt.close()
                 raise
         
-        # White openings analysis
+        # Анализ дебютов белыми
         white_df = df[df['played_as'] == 'white']
-        logger.info(f"Found {len(white_df)} white games")
+        logger.info(f"Найдено {len(white_df)} партий белыми")
         white_stats = calculate_opening_stats(white_df)
         
-        # Create charts for most played openings (not most successful)
+        # Создать диаграммы для наиболее часто используемых дебютов
         create_opening_chart(
             sorted(white_stats, key=lambda x: x['total_games'], reverse=True),
-            "Results for Top 5 Openings as White",
+            "Результаты по топ-5 дебютам белыми",
             os.path.join(output_dir, "result_top_5_wh.png"),
             best=True
         )
         
-        # Black openings analysis
+        # Анализ дебютов чёрными
         black_df = df[df['played_as'] == 'black']
-        logger.info(f"Found {len(black_df)} black games")
+        logger.info(f"Найдено {len(black_df)} партий чёрными")
         black_stats = calculate_opening_stats(black_df)
         
-        # Create charts for most played openings (not most successful)
+        # Создать диаграммы для наиболее часто используемых дебютов
         create_opening_chart(
             sorted(black_stats, key=lambda x: x['total_games'], reverse=True),
-            "Results for Top 5 Openings as Black",
+            "Результаты по топ-5 дебютам чёрными",
             os.path.join(output_dir, "result_top_5_bl.png"),
             best=True
         )
         
-        logger.info("Top 5 openings analysis complete")
+        logger.info("Анализ топ-5 дебютов завершён")
         
     except Exception as e:
-        logger.error(f"Error in top 5 openings analysis: {str(e)}")
-        logger.error(f"Error type: {type(e).__name__}")
+        logger.error(f"Ошибка в анализе топ-5 дебютов: {str(e)}")
+        logger.error(f"Тип ошибки: {type(e).__name__}")
         import traceback
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise  # Re-raise to ensure the error is propagated
+        logger.error(f"Трассировка: {traceback.format_exc()}")
+        raise  # Повторно поднять ошибку, чтобы она была передана дальше
 
 def create_overall_results(df: pd.DataFrame, username: str) -> None:
-    """Create overall results visualization showing detailed breakdown of game results"""
+    """Создать визуализацию общих результатов с детальной разбивкой по типам исходов"""
     try:
-        logger.info("Creating overall results visualization...")
+        logger.info("Создание визуализации общих результатов...")
         
-        # Get all possible result types and their counts
+        # Все возможные типы результатов и их количество
         all_results = ['win', 'resigned', 'checkmated', 'timeout', 'repetition', 
                       'abandoned', 'stalemate', 'time vs\ninsufficient', 'insufficient', 'agreed']
         
-        # Map the original values to display values
+        # Отображение исходных значений на отображаемые
         result_map = {
             'timevsinsufficient': 'time vs\ninsufficient',
             'win': 'win',
@@ -833,78 +831,78 @@ def create_overall_results(df: pd.DataFrame, username: str) -> None:
             'agreed': 'agreed'
         }
         
-        # Create a copy of the result column with mapped values
+        # Создать копию столбца результатов с отображёнными значениями
         df['result_display'] = df['result_for_player'].map(result_map)
         result_counts = df['result_display'].value_counts()
         
-        # Create a Series with all results, filling missing values with 0
+        # Создать Series со всеми результатами, заполнив отсутствующие нулями
         most_frequently_opening = pd.Series(0, index=all_results)
         most_frequently_opening.update(result_counts)
         
-        plt.figure(figsize=(20, 10))  # Increased figure size
+        plt.figure(figsize=(20, 10))  # Увеличен размер фигуры
         
-        # Create custom color palette from dark bluish-gray to lighter blues
+        # Создать пользовательскую палитру от тёмно-серо-голубого до светлых оттенков синего
         colors = sns.color_palette("Blues_d", n_colors=len(all_results))
-        colors.reverse()  # Reverse to match the original dark-to-light pattern
+        colors.reverse()  # Обратный порядок для соответствия исходному шаблону от тёмного к светлому
         
-        # Create bar plot with custom styling
+        # Создать столбчатую диаграмму с пользовательским стилем
         opening = sns.barplot(x=most_frequently_opening.index, 
                             y=most_frequently_opening.values,
                             palette=colors)
         
-        # Style the plot
-        plt.title("Overall Game Results Distribution", fontsize=24, pad=20)  # Added title
-        plt.ylabel("Number of Games", fontsize=20, labelpad=15, weight='bold')
-        plt.xlabel("Game Result", fontsize=20, labelpad=15, weight='bold')
+        # Оформить график
+        plt.title("Распределение общих результатов партий", fontsize=24, pad=20)  # Добавлен заголовок
+        plt.ylabel("Количество партий", fontsize=20, labelpad=15, weight='bold')
+        plt.xlabel("Результат партии", fontsize=20, labelpad=15, weight='bold')
         
-        # Add value labels on top of bars with increased size
+        # Добавить значения на вершинах столбцов с увеличенным размером
         for p in opening.patches:
             height = p.get_height()
             text = str(int(height))
             opening.text(p.get_x() + p.get_width() / 2, height + 1, 
                        text, ha="center", fontsize=14, fontweight='bold')
         
-        # Set background color and remove grid
+        # Установить цвет фона и убрать сетку
         opening.set_facecolor('xkcd:white')
         plt.grid(False)
         
-        # Set y-axis to start from 0 with more padding for labels
+        # Установить ось Y, начинающуюся с 0, с дополнительным отступом для подписей
         plt.ylim(0, max(most_frequently_opening.values) * 1.15)
         
-        # Increase tick label size and make horizontal
+        # Увеличить размер подписей делений и сделать их горизонтальными
         plt.xticks(fontsize=16, rotation=0, ha='center')
         plt.yticks(fontsize=16)
         
-        # Adjust layout to prevent label cutoff
+        # Настроить отступы, чтобы избежать обрезания подписей
         plt.subplots_adjust(bottom=0.15, left=0.1, right=0.95, top=0.9)
         
-        # Save the figure with higher DPI
+        # Сохранить фигуру с более высоким DPI
         output_path = os.path.join('player_data', username, "overall_results.png")
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
         plt.close()
         
-        logger.info("Overall results visualization complete")
+        logger.info("Визуализация общих результатов завершена")
         
     except Exception as e:
-        logger.error(f"Error in overall results: {str(e)}")
+        logger.error(f"Ошибка в общих результатах: {str(e)}")
         raise
 
 def create_overall_results_pie(df: pd.DataFrame, username: str) -> None:
-    """Create pie chart of overall game results"""
+    """Создать круговую диаграмму общих результатов партий"""
     try:
-        logger.info("Creating overall results pie chart...")
+        logger.info("Создание круговой диаграммы общих результатов...")
         
-        # Get result counts
+        # Получить количество партий по результатам
         result_counts = df['result_for_player'].value_counts()
         
-        # Create figure
+        # Создать фигуру
         plt.figure(figsize=(12, 8))
         
-        # Define colors for each result type
+        # Определить цвета для каждого типа результата
         colors = plt.cm.Pastel1(np.linspace(0, 1, len(result_counts)))
         
-        # Create pie chart with clean styling
+        # Создать круговую диаграмму с чистым стилем
         patches, texts, autotexts = plt.pie(
             result_counts.values, 
             labels=result_counts.index,
@@ -914,35 +912,35 @@ def create_overall_results_pie(df: pd.DataFrame, username: str) -> None:
             textprops={'fontsize': 12}
         )
         
-        # Add title
-        plt.title('Overall Results Distribution', size=16, pad=20)
+        # Добавить заголовок
+        plt.title('Распределение общих результатов', size=16, pad=20)
         
-        # Add legend
+        # Добавить легенду
         plt.legend(
             patches,
             result_counts.index,
-            title="Results",
+            title="Результаты",
             loc="center left",
             bbox_to_anchor=(1, 0, 0.5, 1)
         )
         
-        # Equal aspect ratio ensures circular pie
+        # Равное соотношение сторон обеспечивает круглую форму
         plt.axis('equal')
         
-        # Save figure with extra space for legend
+        # Сохранить фигуру с дополнительным пространством для легенды
         output_path = os.path.join('player_data', username, "overall_results_pie.png")
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
         plt.close()
         
-        logger.info("Overall results pie chart complete")
+        logger.info("Круговая диаграмма общих результатов завершена")
         
     except Exception as e:
-        logger.error(f"Error in overall results pie chart: {str(e)}")
+        logger.error(f"Ошибка в круговой диаграмме общих результатов: {str(e)}")
         raise
 
 def wh_heatmap_beg(df: pd.DataFrame, username: str, vmax: Optional[float] = None) -> float:
-    """Create heatmap for starting squares as white"""
+    """Создать тепловую карту начальных полей для белых"""
     di = {
         "a1": [0, 0, 0, 0, 0, 0, 0, 0],
         "b1": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -985,7 +983,7 @@ def wh_heatmap_beg(df: pd.DataFrame, username: str, vmax: Optional[float] = None
 
     plt.figure(figsize=(10, 10))
     board = sns.heatmap(board_open, cmap='Reds', square=True, linewidths=.1, linecolor='black', vmax=vmax)
-    board.set_title('Starting Square Heatmap as White', size=18, y=1.05)
+    board.set_title('Тепловая карта начальных полей для белых', size=18, y=1.05)
     
     output_path = os.path.join('player_data', username, "heatmap_starting_white.png")
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -995,7 +993,7 @@ def wh_heatmap_beg(df: pd.DataFrame, username: str, vmax: Optional[float] = None
     return board_open.values.max()
 
 def wh_heatmap_end(df: pd.DataFrame, username: str, vmax: Optional[float] = None) -> float:
-    """Create heatmap for landing squares as white"""
+    """Создать тепловую карту конечных полей для белых"""
     di = {
         "a1": [0, 0, 0, 0, 0, 0, 0, 0],
         "b1": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -1038,7 +1036,7 @@ def wh_heatmap_end(df: pd.DataFrame, username: str, vmax: Optional[float] = None
 
     plt.figure(figsize=(10, 10))
     board = sns.heatmap(board_open, cmap='Reds', square=True, linewidths=.1, linecolor='black', vmax=vmax)
-    board.set_title('Landing Square Heatmap as White', size=18, y=1.05)
+    board.set_title('Тепловая карта конечных полей для белых', size=18, y=1.05)
     
     output_path = os.path.join('player_data', username, "heatmap_landing_white.png")
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -1048,38 +1046,38 @@ def wh_heatmap_end(df: pd.DataFrame, username: str, vmax: Optional[float] = None
     return board_open.values.max()
 
 def bl_heatmap_beg(df: pd.DataFrame, username: str, vmax: Optional[float] = None) -> float:
-    """Create heatmap for starting squares as black"""
-    # Initialize the board matrix directly (8x8)
+    """Создать тепловую карту начальных полей для чёрных"""
+    # Инициализировать матрицу доски напрямую (8x8)
     board_matrix = np.zeros((8, 8))
 
-    # Process only games where user played as black
+    # Обрабатывать только партии, где пользователь играл чёрными
     black_games = df[df['played_as'] == "black"]
     
     for _, row in black_games.iterrows():
         pgn = chess.pgn.read_game(io.StringIO(row['PGN']))
         if pgn:
             moves = list(pgn.mainline_moves())
-            if len(moves) >= 2:  # Make sure there are at least 2 moves (white's first move and black's response)
-                black_move = moves[1]  # Get black's first move (second move in the game)
+            if len(moves) >= 2:  # Убедиться, что есть как минимум 2 хода (первый ход белых и ответ чёрных)
+                black_move = moves[1]  # Получить первый ход чёрных (второй ход в партии)
                 from_square = chess.square_name(black_move.from_square)
                 
-                # Get file and rank indices (0-7)
-                file_idx = ord(from_square[0]) - ord('a')  # Convert a-h to 0-7
-                rank_idx = 8 - int(from_square[1])  # Convert 1-8 to 7-0 (flipped for display)
+                # Получить индексы вертикали и горизонтали (0-7)
+                file_idx = ord(from_square[0]) - ord('a')  # Преобразовать a-h в 0-7
+                rank_idx = 8 - int(from_square[1])  # Преобразовать 1-8 в 7-0 (перевёрнуто для отображения)
                 
-                # Increment the count in the matrix
+                # Увеличить счёт в матрице
                 board_matrix[rank_idx][file_idx] += 1
 
-    # Create DataFrame for seaborn
+    # Создать DataFrame для seaborn
     board_df = pd.DataFrame(
         board_matrix,
-        index=['8', '7', '6', '5', '4', '3', '2', '1'],  # Ranks from top to bottom
-        columns=['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']  # Files from left to right
+        index=['8', '7', '6', '5', '4', '3', '2', '1'],  # Горизонтали сверху вниз
+        columns=['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']  # Вертикали слева направо
     )
 
     plt.figure(figsize=(10, 10))
     board = sns.heatmap(board_df, cmap='Blues', square=True, linewidths=.1, linecolor='black', vmax=vmax)
-    board.set_title('Starting Square Heatmap as Black', size=18, y=1.05)
+    board.set_title('Тепловая карта начальных полей для чёрных', size=18, y=1.05)
     
     output_path = os.path.join('player_data', username, "heatmap_starting_black.png")
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -1089,38 +1087,38 @@ def bl_heatmap_beg(df: pd.DataFrame, username: str, vmax: Optional[float] = None
     return board_matrix.max()
 
 def bl_heatmap_end(df: pd.DataFrame, username: str, vmax: Optional[float] = None) -> float:
-    """Create heatmap for landing squares as black"""
-    # Initialize the board matrix directly (8x8)
+    """Создать тепловую карту конечных полей для чёрных"""
+    # Инициализировать матрицу доски напрямую (8x8)
     board_matrix = np.zeros((8, 8))
 
-    # Process only games where user played as black
+    # Обрабатывать только партии, где пользователь играл чёрными
     black_games = df[df['played_as'] == "black"]
     
     for _, row in black_games.iterrows():
         pgn = chess.pgn.read_game(io.StringIO(row['PGN']))
         if pgn:
             moves = list(pgn.mainline_moves())
-            if len(moves) >= 2:  # Make sure there are at least 2 moves (white's first move and black's response)
-                black_move = moves[1]  # Get black's first move (second move in the game)
+            if len(moves) >= 2:  # Убедиться, что есть как минимум 2 хода (первый ход белых и ответ чёрных)
+                black_move = moves[1]  # Получить первый ход чёрных (второй ход в партии)
                 to_square = chess.square_name(black_move.to_square)
                 
-                # Get file and rank indices (0-7)
-                file_idx = ord(to_square[0]) - ord('a')  # Convert a-h to 0-7
-                rank_idx = 8 - int(to_square[1])  # Convert 1-8 to 7-0 (flipped for display)
+                # Получить индексы вертикали и горизонтали (0-7)
+                file_idx = ord(to_square[0]) - ord('a')  # Преобразовать a-h в 0-7
+                rank_idx = 8 - int(to_square[1])  # Преобразовать 1-8 в 7-0 (перевёрнуто для отображения)
                 
-                # Increment the count in the matrix
+                # Увеличить счёт в матрице
                 board_matrix[rank_idx][file_idx] += 1
 
-    # Create DataFrame for seaborn
+    # Создать DataFrame для seaborn
     board_df = pd.DataFrame(
         board_matrix,
-        index=['8', '7', '6', '5', '4', '3', '2', '1'],  # Ranks from top to bottom
-        columns=['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']  # Files from left to right
+        index=['8', '7', '6', '5', '4', '3', '2', '1'],  # Горизонтали сверху вниз
+        columns=['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']  # Вертикали слева направо
     )
 
     plt.figure(figsize=(10, 10))
     board = sns.heatmap(board_df, cmap='Blues', square=True, linewidths=.1, linecolor='black', vmax=vmax)
-    board.set_title('Landing Square Heatmap as Black', size=18, y=1.05)
+    board.set_title('Тепловая карта конечных полей для чёрных', size=18, y=1.05)
     
     output_path = os.path.join('player_data', username, "heatmap_landing_black.png")
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -1130,11 +1128,11 @@ def bl_heatmap_end(df: pd.DataFrame, username: str, vmax: Optional[float] = None
     return board_matrix.max()
 
 def create_combined_heatmaps(df: pd.DataFrame, username: str) -> None:
-    """Create and combine all heatmaps"""
+    """Создать и объединить все тепловые карты"""
     try:
-        logger.info("Creating combined heatmap visualizations...")
+        logger.info("Создание комбинированных тепловых карт...")
         
-        # First pass to get max values for consistent scales
+        # Первый проход для получения максимальных значений для согласованных шкал
         white_start_max = wh_heatmap_beg(df, username, None)
         white_end_max = wh_heatmap_end(df, username, None)
         white_max = max(white_start_max, white_end_max)
@@ -1143,110 +1141,110 @@ def create_combined_heatmaps(df: pd.DataFrame, username: str) -> None:
         black_end_max = bl_heatmap_end(df, username, None)
         black_max = max(black_start_max, black_end_max)
         
-        # Second pass with consistent scales
+        # Второй проход с согласованными шкалами
         wh_heatmap_beg(df, username, white_max)
         wh_heatmap_end(df, username, white_max)
         bl_heatmap_beg(df, username, black_max)
         bl_heatmap_end(df, username, black_max)
         
-        # Create combined figure for white heatmaps
+        # Создать комбинированную фигуру для тепловых карт белых
         plt.figure(figsize=(20, 10))
         
-        # White starting squares
+        # Начальные поля белых
         plt.subplot(1, 2, 1)
         img1 = plt.imread(os.path.join('player_data', username, "heatmap_starting_white.png"))
         plt.imshow(img1)
         plt.axis('off')
         
-        # White landing squares
+        # Конечные поля белых
         plt.subplot(1, 2, 2)
         img2 = plt.imread(os.path.join('player_data', username, "heatmap_landing_white.png"))
         plt.imshow(img2)
         plt.axis('off')
         
-        plt.suptitle("Starting and Landing Square Heatmaps as White", size=24, y=1.02)
+        plt.suptitle("Тепловые карты начальных и конечных полей для белых", size=24, y=1.02)
         plt.tight_layout()
         plt.savefig(os.path.join('player_data', username, "heatmap_combined_white.png"), 
                    bbox_inches='tight', dpi=300)
         plt.close()
         
-        # Create combined figure for black heatmaps
+        # Создать комбинированную фигуру для тепловых карт чёрных
         plt.figure(figsize=(20, 10))
         
-        # Black starting squares
+        # Начальные поля чёрных
         plt.subplot(1, 2, 1)
         img3 = plt.imread(os.path.join('player_data', username, "heatmap_starting_black.png"))
         plt.imshow(img3)
         plt.axis('off')
         
-        # Black landing squares
+        # Конечные поля чёрных
         plt.subplot(1, 2, 2)
         img4 = plt.imread(os.path.join('player_data', username, "heatmap_landing_black.png"))
         plt.imshow(img4)
         plt.axis('off')
         
-        plt.suptitle("Starting and Landing Square Heatmaps as Black", size=24, y=1.02)
+        plt.suptitle("Тепловые карты начальных и конечных полей для чёрных", size=24, y=1.02)
         plt.tight_layout()
         plt.savefig(os.path.join('player_data', username, "heatmap_combined_black.png"), 
                    bbox_inches='tight', dpi=300)
         plt.close()
         
-        logger.info("Combined heatmap visualizations complete")
+        logger.info("Комбинированные тепловые карты успешно созданы")
         
     except Exception as e:
-        logger.error(f"Error in combined heatmaps: {str(e)}")
+        logger.error(f"Ошибка в комбинированных тепловых картах: {str(e)}")
         raise
 
 def driver_fn(username: str) -> None:
-    """Main driver function for visualizations"""
+    """Основная функция для визуализаций"""
     try:
-        logger.info(f"Starting game analysis for user: {username}")
+        logger.info(f"Запуск анализа игр для пользователя: {username}")
         
-        # Configure matplotlib for non-interactive backend
+        # Настройка matplotlib для неинтерактивного бэкенда
         plt.switch_backend('Agg')
         
         if not check_dependencies():
-            raise Exception("Missing required dependencies")
+            raise Exception("Отсутствуют необходимые зависимости")
             
-        # Ensure directory exists and is absolute
+        # Убедиться, что директория существует и является абсолютной
         user_dir = os.path.join('player_data', username)
         os.makedirs(user_dir, exist_ok=True)
         
-        logger.info(f"Loading data for {username}")
+        logger.info(f"Загрузка данных для {username}")
         df_path = os.path.join(user_dir, 'chess_dataset.csv')
         
         if not os.path.exists(df_path):
-            raise FileNotFoundError(f"Dataset not found at {df_path}. Please ensure the data has been downloaded first.")
+            raise FileNotFoundError(f"Набор данных не найден по пути {df_path}. Убедитесь, что данные сначала загружены.")
             
         df = pd.read_csv(df_path)
         if len(df) == 0:
-            raise ValueError("Dataset is empty")
+            raise ValueError("Набор данных пуст")
             
-        logger.info(f"Loaded {len(df)} games")
+        logger.info(f"Загружено {len(df)} партий")
         
-        # Add derived columns
-        logger.info("Processing data...")
+        # Добавить производные столбцы
+        logger.info("Обработка данных...")
         df["rating_difference"] = df["player_rating"] - df["opponent_rating"]
         df["moves"] = pd.to_numeric(df["moves"], errors='coerce')
         
-        # Generate all visualizations
+        # Генерация всех визуализаций
         visualization_functions = [
-            (fight, "fight analysis"),
-            (wh_countplot, "white opening analysis"),
-            (bl_countplot, "black opening analysis"),
-            (most_used_wh, "top 3 first moves"),
-            (most_used_bl, "top 3 black replies"),
-            (create_rating_ladder, "rating progress"),
-            (create_time_control_dist, "time control distribution"),
-            (create_color_results, "color results"),
-            (create_top_5_openings, "top 5 openings analysis"),
-            (create_overall_results, "overall results"),
-            (create_overall_results_pie, "overall results pie"),
-            (wh_heatmap_beg, "starting squares as white"),
-            (wh_heatmap_end, "landing squares as white"),
-            (bl_heatmap_beg, "starting squares as black"),
-            (bl_heatmap_end, "landing squares as black"),
-            (create_combined_heatmaps, "combined heatmaps")
+            (fight, "анализ длины партий"),
+            (wh_countplot, "анализ дебютов белыми"),
+            (bl_countplot, "анализ дебютов чёрными"),
+            (most_used_wh, "топ-3 первых ходов"),
+            (most_used_bl, "топ-3 ответов чёрными"),
+            (create_rating_ladder, "прогресс рейтинга"),
+            (create_time_control_dist, "распределение контроля времени"),
+            (create_color_results, "результаты по цвету"),
+            (create_top_5_openings, "анализ топ-5 дебютов"),
+            (create_overall_results, "общие результаты"),
+            (create_overall_results_pie, "круговая диаграмма общих результатов"),
+            (wh_heatmap_beg, "начальные поля белыми"),
+            (wh_heatmap_end, "конечные поля белыми"),
+            (bl_heatmap_beg, "начальные поля чёрными"),
+            (bl_heatmap_end, "конечные поля чёрными"),
+            (create_combined_heatmaps, "комбинированные тепловые карты")
         ]
         
         successful_visualizations = []
@@ -1254,48 +1252,49 @@ def driver_fn(username: str) -> None:
         
         for viz_func, description in visualization_functions:
             try:
-                logger.info(f"Starting {description}...")
+                logger.info(f"Запуск {description}...")
                 
-                # Clear memory before each visualization
+                # Очистить память перед каждой визуализацией
                 plt.close('all')
                 gc.collect()
                 
                 viz_func(df, username)
-                logger.info(f"Completed {description}")
+                logger.info(f"Завершён {description}")
                 successful_visualizations.append(description)
                 
             except Exception as e:
-                logger.error(f"Error in {description}: {str(e)}")
-                logger.error(f"Error type: {type(e).__name__}")
+                logger.error(f"Ошибка в {description}: {str(e)}")
+                logger.error(f"Тип ошибки: {type(e).__name__}")
                 import traceback
-                logger.error(f"Traceback: {traceback.format_exc()}")
+                logger.error(f"Трассировка: {traceback.format_exc()}")
                 failed_visualizations.append(f"{description} ({type(e).__name__})")
                 continue
                 
-        # Log summary
-        logger.info("\nVisualization Summary:")
-        logger.info(f"Successfully completed: {len(successful_visualizations)}")
+        # Вывести сводку
+        logger.info("\nСводка визуализаций:")
+        logger.info(f"Успешно выполнено: {len(successful_visualizations)}")
         for viz in successful_visualizations:
             logger.info(f"✓ {viz}")
             
         if failed_visualizations:
-            logger.info(f"\nFailed visualizations: {len(failed_visualizations)}")
+            logger.info(f"\nНеудачных визуализаций: {len(failed_visualizations)}")
             for viz in failed_visualizations:
                 logger.info(f"✗ {viz}")
                 
     except Exception as e:
-        logger.error(f"Fatal error in visualization process: {str(e)}")
-        logger.error(f"Error type: {type(e).__name__}")
+        logger.error(f"Критическая ошибка в процессе визуализации: {str(e)}")
+        logger.error(f"Тип ошибки: {type(e).__name__}")
         import traceback
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise  # Re-raise to ensure the error is propagated
+        logger.error(f"Трассировка: {traceback.format_exc()}")
+        raise  # Повторно поднять ошибку, чтобы она была передана дальше
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        logger.error("Please provide a username as argument")
+        logger.error("Укажите имя пользователя в качестве аргумента")
         sys.exit(1)
     try:
         driver_fn(sys.argv[1])
     except Exception as e:
-        logger.error(f"Fatal error: {str(e)}")
+        logger.error(f"Критическая ошибка: {str(e)}")
         sys.exit(1)
+        

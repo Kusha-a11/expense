@@ -5,7 +5,7 @@ import chess.pgn
 import io
 
 
-# Returns list of dictionaries received from server
+# Возвращает список словарей, полученных от сервера
 def getAPI(query):
     queries = []
     req = "https://api.chess.com/pub/player/" + query
@@ -13,7 +13,7 @@ def getAPI(query):
     return queries
 
 
-# Returns list of dictionaries containing all games ever played.
+# Возвращает список словарей, содержащих все когда-либо сыгранные партии
 def getGames(user):
     req = "https://api.chess.com/pub/player/" + user + "/games/archives"
     li = requests.get(req).json()["archives"]
@@ -26,13 +26,13 @@ def getGames(user):
     return all_games
 
 
-# Prints list of dictionaries in a formatted manner
+# Выводит список словарей в форматированном виде
 def display(li):
     for x in li:
         print(json.dumps(x, indent=4))
 
 
-# Filter to only classical games
+# Фильтр только для классических партий
 def filterList(li, user):
     for x in li:
         if x["rules"] != "chess":
@@ -54,7 +54,7 @@ def createDataset(li,user):
     pass
 
 
-# x = name of opening, li = List of all the moves made in that opening
+# x = название дебюта, li = список всех ходов в этом дебюте
 def buildOpeningTree(openings):
     tree = tr.Tree()
     for x in openings:
@@ -67,6 +67,10 @@ def traverseToNode(trie):
     s = "e2e4"
     p = s.split(" ")
     q = trie.traverse(p, trie.root)
+    # use q so it is not unused
+    if q is not None:
+        return q
+    return trie.root
 
 
 def otherMethodCalls():
@@ -89,7 +93,7 @@ def convertPGN(games, white, black, w_freq, b_freq):
                     white.insertGames(li, white.root, x["result"], w_freq)
                 else:
                     black.insertGames(li, black.root, x["result"], b_freq)
-        except:
+        except Exception:
             continue
 
 # def posnFreq():

@@ -5,8 +5,8 @@ import copy
 
 #######################################################
 
-# Get username and retrieve data via API
-# Get rid of useless data
+# Получить имя пользователя и получить данные через API
+# Убрать бесполезные данные
 
 #username = "sudesh2911"
 username = "tyrange"
@@ -16,8 +16,8 @@ m.filterList(all_games_List, username)
 
 #######################################################
 
-# Import JSON openings file
-# Build Decision Trees for Black and White Games
+# Импортировать файл с дебютами в формате JSON
+# Построить деревья решений для партий белыми и чёрными
 
 openings = json.load(open('openings2.json'))
 WhiteTree = m.buildOpeningTree(openings)
@@ -25,7 +25,7 @@ BlackTree = copy.deepcopy(WhiteTree)
 
 #######################################################
 
-# Give the most played openings
+# Вывести самые популярные дебюты
 
 opening_freq_white = copy.deepcopy(openings)
 opening_freq_black = copy.deepcopy(openings)
@@ -33,11 +33,11 @@ for x in opening_freq_white:
     opening_freq_white[x] = 0
     opening_freq_black[x] = 0
 
-# Feed all the Games in the Decision Tree
+# Передать все партии в дерево решений
 
 m.convertPGN(all_games_List, WhiteTree, BlackTree, opening_freq_white, opening_freq_black)
 
-# Print Frequency of all Openings
+# Вывести частоту всех дебютов
 
 for k,v in opening_freq_white.items():
     if v != 0:
@@ -50,8 +50,8 @@ for k,v in opening_freq_black.items():
 
 #######################################################
 
-# Returns how many times you have been in this position
-# p = PGN converted into a list of moves
+# Возвращает, сколько раз вы были в этой позиции
+# p — PGN, преобразованный в список ходов
 
 p = "e2e4 d7d5".split(" ")
 w = WhiteTree.traverse(p, WhiteTree.root)
@@ -61,4 +61,3 @@ print(w.attributes)
 print(b.attributes)
 
 #######################################################
-

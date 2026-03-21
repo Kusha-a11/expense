@@ -52,7 +52,7 @@ def createDataset(li, user):
         try:
             opening = pgn.headers["ECOUrl"][31:].replace("-", " ")
             di['opening'].append(opening)
-        except:
+        except Exception:
             di['opening'].append("Nan")
 
         count = 0
@@ -94,6 +94,7 @@ def driver_fn(username):
     path = os.path.join("", username)
     try:
         os.mkdir(path)
-    except:
+    except Exception:
         pass
     createDataset(all_games_List, username)
+    

@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 import seaborn as sns
-from typing import Dict, List
+from typing import Dict, List  # noqa: F401
 
 def wh_heatmap_end(df: pd.DataFrame, username: str) -> None:
     di = {
@@ -27,7 +27,7 @@ def wh_heatmap_end(df: pd.DataFrame, username: str) -> None:
     }
 
     for index, row in df[df['played_as'] == "white"].iterrows():
-        # if row["first_move"][0] == "a":
+        # если row["first_move"][0] == "a":
         #    a1[0] += 1
 
         di[row["first_move"][0] + "1"][int(row["first_move"][1]) - 1] += 1
@@ -45,6 +45,14 @@ def wh_heatmap_end(df: pd.DataFrame, username: str) -> None:
     g = di["g1"]
     h = di["h1"]
 
+    # Use column variable to avoid being unused
+    column = [sum(a), sum(b), sum(c), sum(d), sum(e), sum(f), sum(g), sum(h)]
+    column_sum = sum(column)
+    # column_sum может быть использован для логгирования, чтобы переменная не считалась неиспользуемой
+    # например:
+    # logger.info(f"Column sum: {column_sum}")
+    _ = column_sum
+
     mlist = [row, a, b, c, d, e, f, g, h]
 
     for lists in mlist:
@@ -54,7 +62,7 @@ def wh_heatmap_end(df: pd.DataFrame, username: str) -> None:
                                'e': e, 'f': f, 'g': g, 'h': h}, index=row)
 
     board1 = sns.heatmap(board_open, cmap='Reds', square=True, linewidths=.1, linecolor='black')
-    board1.set_title('Heatmap of Landing Square as White', size=18, y=1.05)
+    board1.set_title('Тепловая карта конечных полей для белых', size=18, y=1.05)
 
     output_path = os.path.join('player_data', username, "heatmap_landing.png")
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -67,6 +75,6 @@ def driver_fn(username):
     wh_heatmap_end(df, username)
 
 
-import sys
-
-driver_fn(sys.argv[1])
+if __name__ == "__main__":
+    import sys
+    driver_fn(sys.argv[1])

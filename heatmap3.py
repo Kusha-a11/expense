@@ -2,37 +2,37 @@ import os
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-from typing import Dict, List
+from typing import Dict, List  # noqa: F401
 
 def heatmap(df: pd.DataFrame, username: str) -> None:
-    """Create correlation heatmap for numeric columns only"""
+    """Создаёт тепловую карту корреляции только для числовых столбцов"""
     try:
-        # Select only numeric columns for correlation
+        # Выбираем только числовые столбцы для корреляции
         numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns
         correlation_df = df[numeric_cols].corr()
         
-        # Create heatmap
+        # Создаём тепловую карту
         plt.figure(figsize=(20, 15))
         sns.set(font_scale=1.5)
         k = sns.heatmap(correlation_df, annot=True, square=False)
         output_path = os.path.join('player_data', username, "corr_heatmap.png")
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         k.get_figure().savefig(output_path, bbox_inches='tight', dpi=300)
-        plt.close()  # Close the figure to free memory
+        plt.close()  # Закрываем фигуру для освобождения памяти
         
     except Exception as e:
-        print(f"Error creating heatmap: {str(e)}")
+        print(f"Ошибка при создании тепловой карты: {str(e)}")
 
 def driver_fn(username: str) -> None:
-    """Process data and create heatmap"""
+    """Обрабатывает данные и создаёт тепловую карту"""
     try:
-        # Read the dataset
+        # Читаем датасет
         df = pd.read_csv(os.path.join('player_data', username, 'chess_dataset.csv'))
         
-        # Add rating difference
+        # Добавляем разницу рейтингов
         df["rating_difference"] = df["player_rating"] - df["opponent_rating"]
         
-        # Convert game results to numeric values
+        # Преобразуем результаты партий в числовые значения
         result_map = {
             "win": 1.0,
             "agreed": 0.5, 
@@ -48,15 +48,15 @@ def driver_fn(username: str) -> None:
         
         df['result_val_for_player'] = df['result_for_player'].map(result_map)
         
-        # Create heatmap
+        # Создаём тепловую карту
         heatmap(df, username)
         
     except Exception as e:
-        print(f"Error in driver function: {str(e)}")
+        print(f"Ошибка в основной функции: {str(e)}")
 
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1:
         driver_fn(sys.argv[1])
     else:
-        print("Please provide a username as argument")
+        print("Укажите имя пользователя в качестве аргумента")

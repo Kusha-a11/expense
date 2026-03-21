@@ -6,7 +6,7 @@ class Node:
             {
                 "Opening Name": "-------", "Wins": 0, "Draws": 0, "Losses": 0, "Games": 0
             }
-        self.hash = {}  # Children Keymapping {e2e4 : 0 , d2d4 : 1 ,...}
+        self.hash = {}  # Отображение ключей дочерних элементов {e2e4 : 0 , d2d4 : 1 ,...}
 
 
 class Tree:
@@ -43,7 +43,7 @@ class Tree:
         elif result in ["checkmated", "resigned", "timeout", "lose", "abandoned"]:
             result = "Losses"
         else:
-            print("Invalid Result")
+            print("Некорректный результат")
 
         open_name = ""
         for x in li:
@@ -65,9 +65,12 @@ class Tree:
             #     continue
 
     def checkNextData(self, node, d, ptr):
-        flag = False
+        found = None
         for x in node.children:
             if x.data == d:
                 ptr = x
-                flag = True
-        return flag
+                found = ptr
+                break
+        # use ptr variable and return it (or False if not found)
+        return found if found is not None else False
+    
