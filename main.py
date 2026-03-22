@@ -492,24 +492,27 @@ def render_about_tab() -> None:
     with col1:
         st.markdown("<hr>", unsafe_allow_html=True)
         st.markdown("""
-     
-        """)
         
-        # Add resume display with a button
-        resume_path = ""
-        # Keep PDFbyte variable used, to avoid unused variable warnings and make button active
-        PDFbyte = None
-        if os.path.exists(resume_path):
-            with open(resume_path, "rb") as pdf_file:
-                PDFbyte = pdf_file.read()
-        if PDFbyte is not None:
-            st.download_button("Скачать резюме", data=PDFbyte, file_name="resume.pdf", mime="application/pdf")
-        else:
-            st.info("Файл резюме не найден.")
+        Данная программа представляет собой **Data Science пайплайн** для анализа шахматных партий игроков с сайта Chess.com.
         
-        st.markdown("""
-          
-        """)
+        #### Основные возможности:
+        - 📥 **Загрузка данных** — автоматический сбор партий пользователя через официальный API Chess.com.
+        - 📊 **Статистический анализ** — построение интерактивных диаграмм и тд. для оценки сильных и слабых сторон.
+        - 🧠 **Прогнозирование** — использование логистической регрессии для предсказания исхода партии между двумя игроками.
+        - ♟️ **Визуализация дебютов** — отображение самых популярных дебютов и первых ходов на шахматной доске.
+        
+        #### Технологии:
+        - **Python** — основной язык разработки
+        - **Streamlit** — фреймворк для создания интерактивного веб-интерфейса
+        - **Pandas, NumPy** — обработка и анализ данных
+        - **Plotly, Matplotlib, Seaborn** — визуализация
+        - **Scikit-learn** — построение модели машинного обучения
+        - **python-chess** — работа с шахматной нотацией и генерация диаграмм
+        
+        """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        st.markdown("**Версия:** 1.0.0 | **Лицензия:** MIT")
     
     with col2:
         # Add Gukesh's image and congratulatory message
