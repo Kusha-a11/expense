@@ -16,7 +16,7 @@ def run_visualization_module(args: Tuple[str, str, str, str]) -> Tuple[str, floa
             check=True,
             capture_output=True,
             text=True,
-            timeout=60  # таймаут 60 секунд
+            timeout=60  
         )
         duration = time.time() - module_start
         return (description, duration, result.stdout, "")
@@ -41,10 +41,8 @@ def visualize_data(username: str) -> None:
         python_exe = sys.executable
         print(f"Используется Python: {python_exe}")
         
-        # Подготовка аргументов для параллельной обработки
         args = [(python_exe, module[0], username, module[1]) for module in modules]
         
-        # Запуск визуализаций параллельно
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
             futures = [executor.submit(run_visualization_module, arg) for arg in args]
             

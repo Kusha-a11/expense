@@ -7,7 +7,6 @@ import time
 import concurrent.futures  # noqa: F401
 import logging
 
-# Добавление правильного импорта модуля chess с обработкой ошибок
 try:
     import chess.pgn
 except ImportError:
@@ -20,12 +19,11 @@ logger = logging.getLogger(__name__)
 def getGames(username: str) -> List[Dict[str, Any]]:
     """Получить все игры пользователя из API chess.com"""
     headers = {
-        'User-Agent': 'Chess Analysis App (Contact: github.com/yogen-ghodke-113)',
+        'User-Agent': 'Chess Analysis App (Contact: https://github.com/Kusha-a111/chess-analysis-app)',
         'Accept': 'application/json'
     }
     
     try:
-        # Сначала получить список архивов
         archives_url = f"https://api.chess.com/pub/player/{username}/games/archives"
         response = requests.get(archives_url, headers=headers, timeout=10)
         
@@ -35,9 +33,8 @@ def getGames(username: str) -> List[Dict[str, Any]]:
         
         archives = response.json()["archives"]
         
-        # Получить игры из всех архивов
         all_games = []
-        for archive_url in archives:  # Получить все архивы, а не только последние 6 месяцев
+        for archive_url in archives: 
             try:
                 response = requests.get(archive_url, headers=headers, timeout=10)
                 response.raise_for_status()

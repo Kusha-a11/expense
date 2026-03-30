@@ -1,14 +1,11 @@
-# Standard library imports
 import os
 import io
 import logging
 import time
 from typing import Dict, Any
 
-# Third-party imports
 import streamlit as st
 
-# Must be the first Streamlit command
 st.set_page_config(
     page_title="Chess Analysis Dashboard",
     page_icon="♟️",
@@ -16,12 +13,11 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Local imports
 import get_data as gd  # noqa: E402
 import visualize as viz  # noqa: E402
 import prediction as pred  # noqa: E402
 
-# Additional third-party imports with error handling
+
 try:
     import pandas as pd  # noqa: F401 - используется в модулях
     import plotly.express as px  # noqa: F401 - используется в модулях
@@ -196,44 +192,35 @@ def render_user_input_tab() -> None:
     
     if st.button("Анализировать игры"):
         if username:
-            # Create placeholder for progress bar and status
             progress_bar = st.progress(0)
             status_text = st.empty()
             log_output = st.empty()
             
             try:
-                # Update status
                 status_text.text("🔄 Загрузка игр с Chess.com...")
                 progress_bar.progress(10)
                 
-                # Create StringIO to capture logs
                 log_capture = io.StringIO()
                 log_handler = logging.StreamHandler(log_capture)
                 log_handler.setFormatter(logging.Formatter('%(message)s'))
                 logging.getLogger().addHandler(log_handler)
                 
-                # Download data
                 gd.driver_fn(username)
                 progress_bar.progress(40)
                 status_text.text("🔄 Обработка данных игр...")
                 
-                # Update log display
                 log_output.code(log_capture.getvalue())
                 
-                # Visualize data
                 status_text.text("🔄 Создание визуализаций...")
                 progress_bar.progress(70)
                 viz.visualize_data(username)
                 
-                # Complete
                 progress_bar.progress(100)
                 status_text.text("✅ Анализ завершен!")
                 
-                # Update session state
                 st.session_state.username = username
                 st.session_state.analysis_complete = True
                 
-                # Show success message with instructions
                 st.success("""
                 ✅ Анализ завершен! 
                 
@@ -272,9 +259,8 @@ def render_analysis_tab() -> None:
         st.info("Пожалуйста, сначала выполните анализ игрока на вкладке Ввод данных пользователя.")
 
 def render_analysis_content(username: str) -> None:
-    """Render the analysis content for a given username"""
+    """Отображение содержимого анализа для данного имени пользователя"""
     try:
-        # Top Openings as White
         st.markdown("<hr>", unsafe_allow_html=True)
         st.header("Топ-20 самых популярных дебютов белыми")
         st.write("Это частотная столбчатая диаграмма топ-20 самых популярных дебютов пользователя белыми.")
@@ -285,7 +271,7 @@ def render_analysis_content(username: str) -> None:
         else:
             st.error("Визуализация анализа дебютов белыми недоступна")
             
-        # Top Openings as Black
+       
         st.markdown("<hr>", unsafe_allow_html=True)
         st.header("Топ-20 самых популярных дебютов черными")
         st.write("Это частотная столбчатая диаграмма топ-20 самых популярных дебютов пользователя черными.")
@@ -296,12 +282,10 @@ def render_analysis_content(username: str) -> None:
         else:
             st.error("Визуализация анализа дебютов черными недоступна")
         
-        # Top First Moves
         st.markdown("<hr>", unsafe_allow_html=True)
         st.header("Топ-3 первых хода белыми")
         cols = st.columns([1.2, 1.2, 1.2, 0.1])
         
-        # Check for move visualizations
         for i, col in enumerate(cols[:-1], 1):
             svg_path = os.path.join('player_data', username, f'top_opening_move_as_white_{i}.svg')
             png_path = os.path.join('player_data', username, f'top_opening_move_as_white_{i}.png')
